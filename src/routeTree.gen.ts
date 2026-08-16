@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedResumesRouteImport } from './routes/_authenticated/resumes'
+import { Route as AuthenticatedResumesIndexRouteImport } from './routes/_authenticated/resumes.index'
 import { Route as AuthenticatedResumesIdRouteImport } from './routes/_authenticated/resumes.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,49 +29,50 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedResumesRoute = AuthenticatedResumesRouteImport.update({
-  id: '/resumes',
-  path: '/resumes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
+const AuthenticatedResumesIndexRoute =
+  AuthenticatedResumesIndexRouteImport.update({
+    id: '/resumes/',
+    path: '/resumes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedResumesIdRoute = AuthenticatedResumesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedResumesRoute,
+  id: '/resumes/$id',
+  path: '/resumes/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/resumes': typeof AuthenticatedResumesRouteWithChildren
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
+  '/resumes/': typeof AuthenticatedResumesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/resumes': typeof AuthenticatedResumesRouteWithChildren
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
+  '/resumes': typeof AuthenticatedResumesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_authenticated/resumes': typeof AuthenticatedResumesRouteWithChildren
   '/_authenticated/resumes/$id': typeof AuthenticatedResumesIdRoute
+  '/_authenticated/resumes/': typeof AuthenticatedResumesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/resumes' | '/resumes/$id'
+  fullPaths: '/' | '/auth' | '/resumes/$id' | '/resumes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/resumes' | '/resumes/$id'
+  to: '/' | '/auth' | '/resumes/$id' | '/resumes'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/_authenticated/resumes'
     | '/_authenticated/resumes/$id'
+    | '/_authenticated/resumes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -103,40 +104,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/resumes': {
-      id: '/_authenticated/resumes'
+    '/_authenticated/resumes/': {
+      id: '/_authenticated/resumes/'
       path: '/resumes'
-      fullPath: '/resumes'
-      preLoaderRoute: typeof AuthenticatedResumesRouteImport
+      fullPath: '/resumes/'
+      preLoaderRoute: typeof AuthenticatedResumesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/resumes/$id': {
       id: '/_authenticated/resumes/$id'
-      path: '/$id'
+      path: '/resumes/$id'
       fullPath: '/resumes/$id'
       preLoaderRoute: typeof AuthenticatedResumesIdRouteImport
-      parentRoute: typeof AuthenticatedResumesRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-interface AuthenticatedResumesRouteChildren {
-  AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
-}
-
-const AuthenticatedResumesRouteChildren: AuthenticatedResumesRouteChildren = {
-  AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
-}
-
-const AuthenticatedResumesRouteWithChildren =
-  AuthenticatedResumesRoute._addFileChildren(AuthenticatedResumesRouteChildren)
-
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedResumesRoute: typeof AuthenticatedResumesRouteWithChildren
+  AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
+  AuthenticatedResumesIndexRoute: typeof AuthenticatedResumesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedResumesRoute: AuthenticatedResumesRouteWithChildren,
+  AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
+  AuthenticatedResumesIndexRoute: AuthenticatedResumesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

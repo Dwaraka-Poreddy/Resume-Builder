@@ -26,7 +26,7 @@ import {
   listResumes,
 } from "@/lib/resume/resumes.functions";
 
-export const Route = createFileRoute("/_authenticated/resumes")({
+export const Route = createFileRoute("/_authenticated/resumes/")({
   head: () => ({
     meta: [
       { title: "My resumes — Resume Builder" },
