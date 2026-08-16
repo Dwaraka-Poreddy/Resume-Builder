@@ -35,7 +35,6 @@ export function DesignTab({ resume, onChange }: Props) {
     { key: "bulletSpacing", label: "Bullet line spacing", min: 0, max: 12, step: 0.5, suffix: "px" },
     { key: "bulletIndent", label: "Bullet indent", min: 0, max: 40, step: 1, suffix: "px" },
     { key: "itemSpacing", label: "Line / group spacing", min: 0, max: 12, step: 0.5, suffix: "px" },
-    { key: "headerRuleWidth", label: "Header rule width", min: 0.2, max: 4, step: 0.1, suffix: "pt" },
     { key: "headingRuleWidth", label: "Section rule width", min: 0.2, max: 4, step: 0.1, suffix: "pt" },
     { key: "headingRuleGap", label: "Space above section rule", min: 0, max: 12, step: 0.5, suffix: "px" },
     { key: "headingSpaceAfter", label: "Space below section rule", min: 0, max: 16, step: 0.5, suffix: "px" },
@@ -58,7 +57,6 @@ export function DesignTab({ resume, onChange }: Props) {
     { key: "boldSectionTitles", label: "Bold section titles" },
     { key: "headingRule", label: "Underline under section titles" },
     { key: "uppercaseHeadings", label: "Uppercase section headings" },
-    { key: "headerRule", label: "Rule under the header" },
     { key: "nameSmallCaps", label: "Small caps name" },
     { key: "fitOnePage", label: "Auto-fit to a single page" },
   ];

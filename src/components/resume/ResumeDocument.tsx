@@ -252,12 +252,6 @@ export function ResumeDocument({ resume }: { resume: Resume }) {
                 ))}
               </div>
             )}
-            {design.headerRule && (
-              <div
-                className="resume-header-rule"
-                style={{ borderBottomWidth: `${design.headerRuleWidth}pt` }}
-              />
-            )}
           </header>
 
           {side.length > 0 ? (

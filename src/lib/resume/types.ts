@@ -59,7 +59,6 @@ export interface Design {
   columnSplit: number;
   letterSpacing: number;
   uppercaseHeadings: boolean;
-  headerRule: boolean;
   nameSmallCaps: boolean;
   fitOnePage: boolean;
   boldSectionTitles: boolean;
@@ -69,7 +68,6 @@ export interface Design {
   headingSpaceAfter: number;
   headingAlign: Align;
   headerAlign: Align;
-  headerRuleWidth: number;
   entrySpacing: number;
   bulletSpacing: number;
   bulletIndent: number;

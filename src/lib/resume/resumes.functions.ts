@@ -36,7 +36,9 @@ export const getResume = createServerFn({ method: "GET" })
 
 export const createResume = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ title: z.string().min(1).max(120), data: z.unknown() }).parse(data))
+  .inputValidator((data) =>
+    z.object({ title: z.string().min(1).max(120), data: z.unknown() }).parse(data),
+  )
   .handler(async ({ context, data }) => {
     const { data: row, error } = await context.supabase
       .from("resumes")
@@ -49,7 +51,9 @@ export const createResume = createServerFn({ method: "POST" })
 
 export const duplicateResume = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data) =>
+    z.object({ id: z.string().uuid(), title: z.string().min(1).max(120).optional() }).parse(data),
+  )
   .handler(async ({ context, data }) => {
     const { data: row, error } = await context.supabase
       .from("resumes")
@@ -58,9 +62,10 @@ export const duplicateResume = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Resume not found");
+    const title = (data.title ?? `${row.title} (copy)`).slice(0, 120);
     const { data: copy, error: insertError } = await context.supabase
       .from("resumes")
-      .insert({ user_id: context.userId, title: `${row.title} (copy)`.slice(0, 120), data: row.data })
+      .insert({ user_id: context.userId, title, data: row.data })
       .select("id")
       .single();
     if (insertError) throw new Error(insertError.message);
@@ -80,8 +85,8 @@ export const saveResume = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const patch: Record<string, unknown> = {};
-    if (data.title !== undefined) patch['title'] = data.title;
-    if (data.data !== undefined) patch['data'] = data.data;
+    if (data.title !== undefined) patch["title"] = data.title;
+    if (data.data !== undefined) patch["data"] = data.data;
     const { error } = await context.supabase
       .from("resumes")
       .update(patch as never)
