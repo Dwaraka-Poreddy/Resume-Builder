@@ -1,3 +1,9 @@
+[build]
+  command = "bun run build"
+  # Nitro's Netlify preset outputs static assets to dist/ (not dist/client/).
+  # The Cloudflare preset uses dist/client/, but on Netlify the preset auto-switches.
+  publish = "dist"
+
 [build.environment]
   # Supabase publishable key, URL, and project ID are public values intentionally
   # embedded in the client bundle by Vite — they are not secrets.
