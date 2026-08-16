@@ -2,10 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  AlertCircle,
   ArrowLeft,
   Check,
   FileDown,
   Loader2,
+  Pencil,
   Printer,
   RotateCcw,
   Save,
@@ -78,12 +80,17 @@ function ResumeEditorPage() {
   const [zoom, setZoom] = useState(0.72);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  // Bumped after a failed save purely to re-trigger the autosave effect's timer.
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     if (!record.data) return;
     setResume(normalise(record.data.data));
     setTitle(record.data.title);
     setDirty(false);
+    setSaveFailed(false);
   }, [record.data]);
 
   const update = useCallback((next: Resume) => {
@@ -91,43 +98,62 @@ function ResumeEditorPage() {
     setResume(next);
   }, []);
 
-  // Saving is manual. Keep the latest values in a ref so the keyboard shortcut
-  // and the button always persist current state without re-binding listeners.
-  const latest = useRef({ resume, title, dirty, saving });
-  latest.current = { resume, title, dirty, saving };
+  // Keep the latest values in a ref so the autosave timer, keyboard shortcut and
+  // button all persist current state without re-binding listeners on every edit.
+  const latest = useRef({ resume, title, dirty, saving, saveFailed });
+  latest.current = { resume, title, dirty, saving, saveFailed };
 
-  const save = useCallback(async () => {
-    const { resume: current, title: currentTitle, saving: inFlight } = latest.current;
-    if (!current || inFlight) return;
-    setSaving(true);
-    try {
-      await persist({
-        data: { id, title: currentTitle.trim() || "Untitled resume", data: current },
-      });
-      setDirty(false);
-      // Title and updated_at changed — keep the library list truthful.
-      void queryClient.invalidateQueries({ queryKey: ["resumes"] });
-      toast.success("Changes saved");
-    } catch {
-      toast.error("Could not save your changes");
-    } finally {
-      setSaving(false);
-    }
-  }, [id, persist, queryClient]);
+  const save = useCallback(
+    async ({ manual = false }: { manual?: boolean } = {}) => {
+      const { resume: current, title: currentTitle, saving: inFlight } = latest.current;
+      if (!current || inFlight) return;
+      setSaving(true);
+      try {
+        await persist({
+          data: { id, title: currentTitle.trim() || "Untitled resume", data: current },
+        });
+        setDirty(false);
+        setSaveFailed(false);
+        setSavedAt(new Date());
+        // Title and updated_at changed — keep the library list truthful.
+        void queryClient.invalidateQueries({ queryKey: ["resumes"] });
+        if (manual) toast.success("Changes saved");
+      } catch {
+        // Announce once per failure streak, not on every retry.
+        if (!latest.current.saveFailed) {
+          toast.error("Couldn't save your changes — we'll keep retrying");
+        }
+        setSaveFailed(true);
+        setRetryTick((tick) => tick + 1);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [id, persist, queryClient],
+  );
 
-  // Cmd/Ctrl+S saves, matching the expectation the Save button sets up.
+  // Autosave: debounce a save shortly after edits stop, and back off to a slower
+  // retry loop while saving is failing. `dirty` stays true until a save lands, so
+  // a failed attempt keeps retrying and keeps the unload guard armed.
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const timer = setTimeout(() => void save(), saveFailed ? 5000 : 1000);
+    return () => clearTimeout(timer);
+  }, [dirty, saving, saveFailed, retryTick, resume, title, save]);
+
+  // Cmd/Ctrl+S saves immediately rather than waiting for the autosave debounce.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void save();
+        void save({ manual: true });
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [save]);
 
-  // Manual saving means unsaved edits are real work — warn before losing them.
+  // Autosave can still be mid-flight or failing when the tab closes.
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!latest.current.dirty) return;
@@ -174,26 +200,44 @@ function ResumeEditorPage() {
             <ArrowLeft className="size-4" />
           </Link>
         </Button>
-        <div className="mr-auto min-w-[180px]">
-          <Input
-            aria-label="Resume name"
-            className="h-8 border-transparent px-2 text-sm font-semibold shadow-none hover:border-border focus-visible:border-border"
-            value={title}
-            onChange={(e) => {
-              setDirty(true);
-              setTitle(e.target.value);
-            }}
-          />
-          <p className="px-2 text-xs text-muted-foreground">
+        <div className="mr-auto min-w-[220px]">
+          {/* Visible border + pencil so it reads as an editable field, not a heading. */}
+          <div className="relative">
+            <Input
+              aria-label="Resume name"
+              title="Rename this resume"
+              maxLength={120}
+              className="h-8 pr-7 pl-2 text-sm font-semibold"
+              value={title}
+              onChange={(e) => {
+                setDirty(true);
+                setTitle(e.target.value);
+              }}
+            />
+            <Pencil className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          <p className="mt-1 px-1 text-xs">
             {saving ? (
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" /> Saving…
               </span>
+            ) : saveFailed ? (
+              <span className="inline-flex items-center gap-1 text-destructive">
+                <AlertCircle className="size-3" /> Couldn&rsquo;t save — retrying…
+              </span>
             ) : dirty ? (
-              <span className="inline-flex items-center gap-1 text-amber-600">Unsaved changes</span>
+              <span className="inline-flex items-center gap-1 text-amber-600">
+                Unsaved changes — saving shortly
+              </span>
             ) : (
-              <span className="inline-flex items-center gap-1">
-                <Check className="size-3" /> Saved to your account
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <Check className="size-3" />
+                {savedAt
+                  ? `Saved at ${savedAt.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : "Saved to your account"}
               </span>
             )}
           </p>
@@ -233,9 +277,16 @@ function ResumeEditorPage() {
         <Button variant="outline" size="sm" onClick={exportPdf}>
           <Printer className="size-4" /> PDF
         </Button>
-        <Button size="sm" onClick={() => void save()} disabled={saving || !dirty}>
+        {/* Autosave covers the normal path; this is "save now" and the retry
+            affordance when autosave is failing. */}
+        <Button
+          size="sm"
+          variant={saveFailed ? "destructive" : "default"}
+          onClick={() => void save({ manual: true })}
+          disabled={saving || (!dirty && !saveFailed)}
+        >
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+          {saving ? "Saving…" : saveFailed ? "Retry save" : dirty ? "Save now" : "Saved"}
         </Button>
       </header>
 

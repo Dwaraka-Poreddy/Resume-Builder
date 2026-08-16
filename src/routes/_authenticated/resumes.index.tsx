@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy, FileText, Loader2, LogOut, Plus, Trash2 } from "lucide-react";
+import { Copy, FileText, Loader2, LogOut, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ import {
   deleteResume,
   duplicateResume,
   listResumes,
+  saveResume,
 } from "@/lib/resume/resumes.functions";
 
 export const Route = createFileRoute("/_authenticated/resumes/")({
@@ -48,7 +49,10 @@ export const Route = createFileRoute("/_authenticated/resumes/")({
 });
 
 /** Which name dialog is open, and what it will act on once submitted. */
-type NamePrompt = { mode: "create" } | { mode: "duplicate"; id: string; sourceTitle: string };
+type NamePrompt =
+  | { mode: "create" }
+  | { mode: "duplicate"; id: string; sourceTitle: string }
+  | { mode: "rename"; id: string; sourceTitle: string };
 
 function ResumeLibrary() {
   const navigate = useNavigate();
@@ -57,6 +61,8 @@ function ResumeLibrary() {
   const create = useServerFn(createResume);
   const dupe = useServerFn(duplicateResume);
   const remove = useServerFn(deleteResume);
+  // saveResume takes an optional title, so it doubles as rename.
+  const rename = useServerFn(saveResume);
 
   const [prompt, setPrompt] = useState<NamePrompt | null>(null);
   const [name, setName] = useState("");
@@ -72,6 +78,11 @@ function ResumeLibrary() {
   const openDuplicate = (id: string, sourceTitle: string) => {
     setPrompt({ mode: "duplicate", id, sourceTitle });
     setName(`${sourceTitle} (copy)`.slice(0, 120));
+  };
+
+  const openRename = (id: string, sourceTitle: string) => {
+    setPrompt({ mode: "rename", id, sourceTitle });
+    setName(sourceTitle);
   };
 
   const closePrompt = () => setPrompt(null);
@@ -99,6 +110,17 @@ function ResumeLibrary() {
     onError: () => toast.error("Could not duplicate the resume"),
   });
 
+  // Renaming stays on the list — no navigation, just refresh the row.
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => rename({ data: { id, title } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["resumes"] });
+      closePrompt();
+      toast.success("Resume renamed");
+    },
+    onError: () => toast.error("Could not rename the resume"),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
     onMutate: (id: string) => setPendingDeleteId(id),
@@ -115,10 +137,12 @@ function ResumeLibrary() {
     const title = name.trim();
     if (!title || !prompt) return;
     if (prompt.mode === "create") createMutation.mutate(title);
-    else duplicateMutation.mutate({ id: prompt.id, title });
+    else if (prompt.mode === "duplicate") duplicateMutation.mutate({ id: prompt.id, title });
+    else renameMutation.mutate({ id: prompt.id, title });
   };
 
-  const promptBusy = createMutation.isPending || duplicateMutation.isPending;
+  const promptBusy =
+    createMutation.isPending || duplicateMutation.isPending || renameMutation.isPending;
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -202,6 +226,15 @@ function ResumeLibrary() {
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label={`Rename ${item.title}`}
+                      disabled={busy}
+                      onClick={() => openRename(item.id, item.title)}
+                    >
+                      <Pencil className="size-4" /> Rename
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       aria-label={`Duplicate ${item.title}`}
                       disabled={busy}
                       onClick={() => openDuplicate(item.id, item.title)}
@@ -237,12 +270,18 @@ function ResumeLibrary() {
           <form onSubmit={submitPrompt}>
             <DialogHeader>
               <DialogTitle>
-                {prompt?.mode === "duplicate" ? "Name the copy" : "Name your resume"}
+                {prompt?.mode === "duplicate"
+                  ? "Name the copy"
+                  : prompt?.mode === "rename"
+                    ? "Rename resume"
+                    : "Name your resume"}
               </DialogTitle>
               <DialogDescription>
                 {prompt?.mode === "duplicate"
                   ? `Duplicating "${prompt.sourceTitle}". You can rename it later.`
-                  : "Give it a name so you can find it later. You can rename it anytime."}
+                  : prompt?.mode === "rename"
+                    ? `Currently called "${prompt.sourceTitle}".`
+                    : "Give it a name so you can find it later. You can rename it anytime."}
               </DialogDescription>
             </DialogHeader>
 
@@ -267,10 +306,16 @@ function ResumeLibrary() {
                 {promptBusy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    {prompt?.mode === "duplicate" ? "Creating copy…" : "Creating…"}
+                    {prompt?.mode === "duplicate"
+                      ? "Creating copy…"
+                      : prompt?.mode === "rename"
+                        ? "Renaming…"
+                        : "Creating…"}
                   </>
                 ) : prompt?.mode === "duplicate" ? (
                   "Create copy"
+                ) : prompt?.mode === "rename" ? (
+                  "Rename"
                 ) : (
                   "Create resume"
                 )}
