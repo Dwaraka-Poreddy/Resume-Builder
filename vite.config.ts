@@ -12,4 +12,13 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    // Nitro's rolldown code-splitting emits two mutually-importing SSR chunks
+    // (server-<hash>.mjs and server-<hash>2.mjs). The cycle leaves TanStack's
+    // createMiddleware/createCsrfMiddleware in the ESM temporal dead zone, so the
+    // function crashes at import time with "createMiddleware is not a function"
+    // and every route returns the 500 error page. Emitting a single SSR bundle
+    // removes the cycle.
+    inlineDynamicImports: true,
+  },
 });
