@@ -189,6 +189,9 @@
   overflow: hidden;
   box-sizing: border-box;
   text-rendering: geometricPrecision;
+  hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .resume-fit {
@@ -306,7 +309,6 @@
   flex: 1 1 auto;
   text-align: justify;
   text-justify: inter-word;
-  hyphens: auto;
 }
 
 .resume-line,

@@ -79,12 +79,15 @@ export function DesignTab({ resume, onChange }: Props) {
           </SelectTrigger>
           <SelectContent>
             {FONT_OPTIONS.map((font) => (
-              <SelectItem key={font.value} value={font.value}>
+              <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
                 {font.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground">
+          Fonts use those installed on your device, with a similar fallback when unavailable.
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">

@@ -91,8 +91,15 @@ export const FONT_OPTIONS = [
   { label: "CMU Serif (LaTeX)", value: '"CMU Serif", "Latin Modern Roman", Georgia, serif' },
   { label: "Georgia", value: 'Georgia, "Times New Roman", serif' },
   { label: "Times New Roman", value: '"Times New Roman", Times, serif' },
+  { label: "Cambria", value: 'Cambria, Georgia, serif' },
+  { label: "Garamond", value: 'Garamond, "Palatino Linotype", Georgia, serif' },
+  { label: "Palatino", value: '"Palatino Linotype", Palatino, Georgia, serif' },
   { label: "Charter / Charis", value: 'Charter, "Charis SIL", Georgia, serif' },
+  { label: "Calibri", value: 'Calibri, "Segoe UI", Arial, sans-serif' },
+  { label: "Arial", value: 'Arial, Helvetica, sans-serif' },
   { label: "Helvetica / Arial", value: 'Helvetica, Arial, sans-serif' },
+  { label: "Verdana", value: 'Verdana, Geneva, sans-serif' },
+  { label: "Trebuchet MS", value: '"Trebuchet MS", Arial, sans-serif' },
   { label: "System sans", value: 'ui-sans-serif, system-ui, sans-serif' },
 ];
 
