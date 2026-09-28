@@ -1,8 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy, FileText, Loader2, LogOut, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  Copy,
+  FileDown,
+  FileText,
+  Loader2,
+  LogOut,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,10 +29,13 @@ import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { defaultResume } from "@/lib/resume/data";
+import { downloadResumeJson, MAX_RESUME_JSON_BYTES, parseResumeJson } from "@/lib/resume/json";
+import type { Resume } from "@/lib/resume/types";
 import {
   createResume,
   deleteResume,
   duplicateResume,
+  getResume,
   listResumes,
   saveResume,
 } from "@/lib/resume/resumes.functions";
@@ -51,6 +64,7 @@ export const Route = createFileRoute("/_authenticated/resumes/")({
 /** Which name dialog is open, and what it will act on once submitted. */
 type NamePrompt =
   | { mode: "create" }
+  | { mode: "import"; data: Resume }
   | { mode: "duplicate"; id: string; sourceTitle: string }
   | { mode: "rename"; id: string; sourceTitle: string };
 
@@ -59,6 +73,7 @@ function ResumeLibrary() {
   const queryClient = useQueryClient();
   const list = useServerFn(listResumes);
   const create = useServerFn(createResume);
+  const load = useServerFn(getResume);
   const dupe = useServerFn(duplicateResume);
   const remove = useServerFn(deleteResume);
   // saveResume takes an optional title, so it doubles as rename.
@@ -67,6 +82,8 @@ function ResumeLibrary() {
   const [prompt, setPrompt] = useState<NamePrompt | null>(null);
   const [name, setName] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [readingFile, setReadingFile] = useState(false);
 
   const resumes = useQuery({ queryKey: ["resumes"], queryFn: () => list() });
 
@@ -98,6 +115,42 @@ function ResumeLibrary() {
     },
     onError: () => toast.error("Could not create the resume"),
   });
+
+  const importMutation = useMutation({
+    mutationFn: ({ title, data }: { title: string; data: Resume }) =>
+      create({ data: { title, data } }),
+    onSuccess: async ({ id }) => {
+      await queryClient.invalidateQueries({ queryKey: ["resumes"] });
+      closePrompt();
+      toast.success("Resume imported");
+      void navigate({ to: "/resumes/$id", params: { id } });
+    },
+    onError: () => toast.error("Could not import the resume. Please try again."),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const record = await load({ data: { id } });
+      downloadResumeJson(record.title, record.data);
+    },
+    onSuccess: () => toast.success("JSON downloaded"),
+    onError: () => toast.error("Could not download the resume JSON. Please try again."),
+  });
+
+  const readImport = async (file: File) => {
+    setReadingFile(true);
+    try {
+      if (file.size > MAX_RESUME_JSON_BYTES)
+        throw new Error("Choose a JSON file smaller than 5 MB.");
+      const imported = parseResumeJson(await file.text(), file.name.replace(/\.json$/i, ""));
+      setName(imported.title);
+      setPrompt({ mode: "import", data: imported.data });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not read this file.");
+    } finally {
+      setReadingFile(false);
+    }
+  };
 
   const duplicateMutation = useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) => dupe({ data: { id, title } }),
@@ -136,13 +189,18 @@ function ResumeLibrary() {
     event.preventDefault();
     const title = name.trim();
     if (!title || !prompt) return;
+    if (promptBusy) return;
     if (prompt.mode === "create") createMutation.mutate(title);
+    else if (prompt.mode === "import") importMutation.mutate({ title, data: prompt.data });
     else if (prompt.mode === "duplicate") duplicateMutation.mutate({ id: prompt.id, title });
     else renameMutation.mutate({ id: prompt.id, title });
   };
 
   const promptBusy =
-    createMutation.isPending || duplicateMutation.isPending || renameMutation.isPending;
+    createMutation.isPending ||
+    importMutation.isPending ||
+    duplicateMutation.isPending ||
+    renameMutation.isPending;
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -154,7 +212,32 @@ function ResumeLibrary() {
             Saved in your account — edit from any device
           </p>
         </div>
-        <Button size="sm" onClick={openCreate}>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          aria-label="Upload resume JSON"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void readImport(file);
+          }}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={readingFile || promptBusy}
+          onClick={() => fileInput.current?.click()}
+        >
+          {readingFile ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
+          {readingFile ? "Reading JSON…" : "Import JSON"}
+        </Button>
+        <Button size="sm" disabled={readingFile || promptBusy} onClick={openCreate}>
           <Plus className="size-4" /> New resume
         </Button>
         <Button
@@ -211,7 +294,7 @@ function ResumeLibrary() {
                 return (
                   <li
                     key={item.id}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-background p-3"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background p-3"
                   >
                     <Link
                       to="/resumes/$id"
@@ -223,6 +306,20 @@ function ResumeLibrary() {
                         Updated {new Date(item.updated_at).toLocaleString()}
                       </span>
                     </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Download ${item.title} as JSON`}
+                      disabled={busy || downloadMutation.isPending}
+                      onClick={() => downloadMutation.mutate(item.id)}
+                    >
+                      {downloadMutation.isPending && downloadMutation.variables === item.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <FileDown className="size-4" />
+                      )}
+                      JSON
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -265,23 +362,32 @@ function ResumeLibrary() {
         )}
       </main>
 
-      <Dialog open={prompt !== null} onOpenChange={(open) => (open ? null : closePrompt())}>
+      <Dialog
+        open={prompt !== null}
+        onOpenChange={(open) => {
+          if (!open && !promptBusy) closePrompt();
+        }}
+      >
         <DialogContent>
           <form onSubmit={submitPrompt}>
             <DialogHeader>
               <DialogTitle>
-                {prompt?.mode === "duplicate"
-                  ? "Name the copy"
-                  : prompt?.mode === "rename"
-                    ? "Rename resume"
-                    : "Name your resume"}
+                {prompt?.mode === "import"
+                  ? "Import resume"
+                  : prompt?.mode === "duplicate"
+                    ? "Name the copy"
+                    : prompt?.mode === "rename"
+                      ? "Rename resume"
+                      : "Name your resume"}
               </DialogTitle>
               <DialogDescription>
-                {prompt?.mode === "duplicate"
-                  ? `Duplicating "${prompt.sourceTitle}". You can rename it later.`
-                  : prompt?.mode === "rename"
-                    ? `Currently called "${prompt.sourceTitle}".`
-                    : "Give it a name so you can find it later. You can rename it anytime."}
+                {prompt?.mode === "import"
+                  ? "Create a new resume from this JSON file, including its content and design. Your existing resumes will stay unchanged."
+                  : prompt?.mode === "duplicate"
+                    ? `Duplicating "${prompt.sourceTitle}". You can rename it later.`
+                    : prompt?.mode === "rename"
+                      ? `Currently called "${prompt.sourceTitle}".`
+                      : "Give it a name so you can find it later. You can rename it anytime."}
               </DialogDescription>
             </DialogHeader>
 

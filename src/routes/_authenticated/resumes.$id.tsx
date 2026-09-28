@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { defaultResume } from "@/lib/resume/data";
+import { downloadResumeJson } from "@/lib/resume/json";
 import { getResume, saveResume } from "@/lib/resume/resumes.functions";
 import type { Resume } from "@/lib/resume/types";
 
@@ -273,6 +274,20 @@ function ResumeEditorPage() {
         </Button>
         <Button variant="outline" size="sm" onClick={exportDocx}>
           <FileDown className="size-4" /> DOCX
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            try {
+              downloadResumeJson(title, resume);
+              toast.success("JSON downloaded");
+            } catch {
+              toast.error("Could not download the resume JSON.");
+            }
+          }}
+        >
+          <FileDown className="size-4" /> JSON
         </Button>
         <Button variant="outline" size="sm" onClick={exportPdf}>
           <Printer className="size-4" /> PDF
