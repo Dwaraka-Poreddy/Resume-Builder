@@ -257,9 +257,11 @@ function ResumeEditorPage() {
           <DialogHeader>
             <DialogTitle>Save a searchable PDF</DialogTitle>
             <DialogDescription>
-              In the next dialog, select your browser's <strong>Save as PDF</strong> destination.
-              Avoid Microsoft Print to PDF or another printer driver: they may convert letters to
-              outlines and remove clickable links. Turn off browser headers and footers.
+              Select <strong>Save as PDF</strong> as the destination to keep text searchable and
+              links clickable. Under <strong>More settings</strong>, set <strong>Margins</strong> to
+              <strong> None</strong> and turn off <strong>Headers and footers</strong> if shown.
+              Your resume's own margins are already included. Microsoft Print to PDF and other
+              printer drivers may remove clickable links; use the browser's Save as PDF option.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

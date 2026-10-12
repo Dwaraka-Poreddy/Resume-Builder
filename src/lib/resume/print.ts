@@ -2,7 +2,9 @@ import type { Design } from "./types";
 
 export function resumePrintStyles(design: Design): string {
   return `
-    @page { size: A4; margin: ${design.marginTop}mm ${design.marginRight}mm ${design.marginBottom}mm ${design.marginLeft}mm; }
+    /* Keep browser-generated headers/footers outside the printable area.
+       Resume margins belong inside each already-paginated sheet. */
+    @page { size: A4; margin: 0; }
     html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
     body * { visibility: visible !important; }
     .resume-page { height: auto !important; overflow: visible !important;
@@ -15,7 +17,9 @@ export function resumePrintStyles(design: Design): string {
     .resume-entry, .resume-bullets li, .resume-group { break-inside: avoid; }
     .resume-heading { break-after: avoid; }
     @media print {
-      .resume-page { width: auto !important; min-height: 0 !important; padding: 0 !important; }
+      .resume-page { width: 210mm !important; min-height: 297mm !important;
+        box-sizing: border-box !important;
+        padding: ${design.marginTop}mm ${design.marginRight}mm ${design.marginBottom}mm ${design.marginLeft}mm !important; }
     }
   `;
 }
