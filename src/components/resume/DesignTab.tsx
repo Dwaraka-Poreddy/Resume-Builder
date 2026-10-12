@@ -1,6 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -29,15 +35,50 @@ export function DesignTab({ resume, onChange }: Props) {
     { key: "lineHeight", label: "Line height", min: 1, max: 1.8, step: 0.02 },
     { key: "sectionSpacing", label: "Section spacing", min: 0, max: 24, step: 1, suffix: "px" },
     { key: "columnSplit", label: "Side column width", min: 20, max: 55, step: 1, suffix: "%" },
-    { key: "letterSpacing", label: "Letter spacing", min: -0.02, max: 0.08, step: 0.005, suffix: "em" },
+    {
+      key: "letterSpacing",
+      label: "Letter spacing",
+      min: -0.02,
+      max: 0.08,
+      step: 0.005,
+      suffix: "em",
+    },
     { key: "columnGap", label: "Column gap", min: 0, max: 20, step: 0.5, suffix: "mm" },
     { key: "entrySpacing", label: "Entry spacing", min: 0, max: 20, step: 1, suffix: "px" },
-    { key: "bulletSpacing", label: "Bullet line spacing", min: 0, max: 12, step: 0.5, suffix: "px" },
+    {
+      key: "bulletSpacing",
+      label: "Bullet line spacing",
+      min: 0,
+      max: 12,
+      step: 0.5,
+      suffix: "px",
+    },
     { key: "bulletIndent", label: "Bullet indent", min: 0, max: 40, step: 1, suffix: "px" },
     { key: "itemSpacing", label: "Line / group spacing", min: 0, max: 12, step: 0.5, suffix: "px" },
-    { key: "headingRuleWidth", label: "Section rule width", min: 0.2, max: 4, step: 0.1, suffix: "pt" },
-    { key: "headingRuleGap", label: "Space above section rule", min: 0, max: 12, step: 0.5, suffix: "px" },
-    { key: "headingSpaceAfter", label: "Space below section rule", min: 0, max: 16, step: 0.5, suffix: "px" },
+    {
+      key: "headingRuleWidth",
+      label: "Section rule width",
+      min: 0.2,
+      max: 4,
+      step: 0.1,
+      suffix: "pt",
+    },
+    {
+      key: "headingRuleGap",
+      label: "Space above section rule",
+      min: 0,
+      max: 12,
+      step: 0.5,
+      suffix: "px",
+    },
+    {
+      key: "headingSpaceAfter",
+      label: "Space below section rule",
+      min: 0,
+      max: 16,
+      step: 0.5,
+      suffix: "px",
+    },
   ];
 
   const margins: { key: keyof Design; label: string }[] = [
@@ -58,7 +99,6 @@ export function DesignTab({ resume, onChange }: Props) {
     { key: "headingRule", label: "Underline under section titles" },
     { key: "uppercaseHeadings", label: "Uppercase section headings" },
     { key: "nameSmallCaps", label: "Small caps name" },
-    { key: "fitOnePage", label: "Auto-fit to a single page" },
   ];
 
   const patchSection = (id: string, next: Partial<Section>) =>
@@ -71,6 +111,22 @@ export function DesignTab({ resume, onChange }: Props) {
 
   return (
     <div className="space-y-5">
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="fit-one-page">Fit to a single page</Label>
+          <Switch
+            id="fit-one-page"
+            aria-describedby="fit-one-page-help"
+            checked={design.fitOnePage}
+            onCheckedChange={(checked) => patch({ fitOnePage: checked })}
+          />
+        </div>
+        <p id="fit-one-page-help" className="text-xs text-muted-foreground">
+          {design.fitOnePage
+            ? "Shrinks sizes and spacing to fit one A4 page, with a 9pt readability limit. Smaller sizes you select are preserved."
+            : "Uses your exact font sizes and spacing. Longer resumes continue onto more pages."}
+        </p>
+      </div>
       <div className="space-y-2">
         <Label>Font family</Label>
         <Select value={design.fontFamily} onValueChange={(value) => patch({ fontFamily: value })}>

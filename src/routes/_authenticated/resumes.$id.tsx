@@ -170,7 +170,8 @@ function ResumeEditorPage() {
   const exportDocx = useCallback(async () => {
     if (!resume) return;
     const { buildResumeDocx } = await import("@/lib/resume/docx");
-    const blob = await buildResumeDocx(resume);
+    const fitScale = Number(document.getElementById("resume-page")?.dataset["fitScale"] ?? 1);
+    const blob = await buildResumeDocx(resume, fitScale);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -316,7 +317,7 @@ function ResumeEditorPage() {
                 Content
               </TabsTrigger>
               <TabsTrigger value="design" className="flex-1">
-                Design
+                Settings
               </TabsTrigger>
             </TabsList>
             <TabsContent value="content" className="mt-4">
@@ -329,14 +330,8 @@ function ResumeEditorPage() {
         </section>
 
         <section className="resume-print-root min-h-0 overflow-auto overscroll-contain">
-          <div
-            className="resume-zoom mx-auto"
-            style={{ width: `calc(210mm * ${zoom})`, height: `calc(297mm * ${zoom})` }}
-          >
-            <div
-              className="resume-zoom shadow-lg ring-1 ring-border"
-              style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: "210mm" }}
-            >
+          <div className="resume-zoom mx-auto" style={{ width: `calc(210mm * ${zoom})` }}>
+            <div className="resume-zoom" style={{ zoom, width: "210mm" }}>
               {preview}
             </div>
           </div>

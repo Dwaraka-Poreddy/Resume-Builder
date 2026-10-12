@@ -22,6 +22,7 @@ const { parseResumeJson, serializeResumeJson } = await import("../src/lib/resume
 test("export/import preserves all content, design and section overrides", () => {
   const resume = structuredClone(defaultResume);
   resume.name = "José — 李";
+  resume.design.fitOnePage = true;
   resume.design.fontFamily = "Calibri, Arial, sans-serif";
   Object.assign(resume.sections[0], {
     hidden: true,
@@ -43,6 +44,7 @@ test("raw resume JSON and missing older design settings are supported", () => {
   const result = parseResumeJson(JSON.stringify(resume), "From file");
   assert.equal(result.title, "From file");
   assert.deepEqual(result.data.design, { ...defaultDesign, fontSize: 11 });
+  assert.equal(result.data.design.fitOnePage, false);
 });
 
 test("invalid JSON and unrelated JSON are rejected", () => {
