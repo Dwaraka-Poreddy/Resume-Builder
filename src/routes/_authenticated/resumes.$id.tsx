@@ -11,19 +11,27 @@ import {
   Printer,
   RotateCcw,
   Save,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentTab } from "@/components/resume/ContentTab";
+import { ResumePreview } from "@/components/resume/ResumePreview";
 import { DesignTab } from "@/components/resume/DesignTab";
 import { ResumeDocument } from "@/components/resume/ResumeDocument";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { printResume } from "@/lib/resume/print";
 import { defaultResume } from "@/lib/resume/data";
 import { downloadResumeJson } from "@/lib/resume/json";
 import { getResume, saveResume } from "@/lib/resume/resumes.functions";
@@ -78,7 +86,10 @@ function ResumeEditorPage() {
 
   const [resume, setResume] = useState<Resume | null>(null);
   const [title, setTitle] = useState("");
-  const [zoom, setZoom] = useState(0.72);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
+  const [pdfHelpOpen, setPdfHelpOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -113,7 +124,7 @@ function ResumeEditorPage() {
         await persist({
           data: { id, title: currentTitle.trim() || "Untitled resume", data: current },
         });
-        setDirty(false);
+        setDirty(latest.current.resume !== current || latest.current.title !== currentTitle);
         setSaveFailed(false);
         setSavedAt(new Date());
         // Title and updated_at changed — keep the library list truthful.
@@ -165,23 +176,42 @@ function ResumeEditorPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
-  const exportPdf = useCallback(() => window.print(), []);
+  const exportPdf = useCallback(async () => {
+    const element = document.getElementById("resume-page");
+    if (!element || !resume || printing) return;
+    setPdfHelpOpen(false);
+    setPrinting(true);
+    try {
+      await printResume(element, title || resume.name, resume.design);
+    } catch {
+      toast.error("Could not prepare the PDF. Please try again.");
+    } finally {
+      setPrinting(false);
+    }
+  }, [resume, title, printing]);
 
   const exportDocx = useCallback(async () => {
-    if (!resume) return;
-    const { buildResumeDocx } = await import("@/lib/resume/docx");
-    const fitScale = Number(document.getElementById("resume-page")?.dataset["fitScale"] ?? 1);
-    const blob = await buildResumeDocx(resume, fitScale);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${(title || resume.name).replace(/\s+/g, "_") || "resume"}.docx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast.success("DOCX downloaded");
-  }, [resume, title]);
+    if (!resume || exportingDocx) return;
+    setExportingDocx(true);
+    try {
+      const { buildResumeDocx } = await import("@/lib/resume/docx");
+      const fitScale = Number(document.getElementById("resume-page")?.dataset["fitScale"] ?? 1);
+      const blob = await buildResumeDocx(resume, fitScale);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(title || resume.name).replace(/\s+/g, "_") || "resume"}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast.success("DOCX downloaded");
+    } catch {
+      toast.error("Could not create the DOCX. Please try again.");
+    } finally {
+      setExportingDocx(false);
+    }
+  }, [resume, title, exportingDocx]);
 
   const preview = useMemo(() => (resume ? <ResumeDocument resume={resume} /> : null), [resume]);
 
@@ -194,15 +224,62 @@ function ResumeEditorPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/40">
+    <div className="flex h-dvh flex-col overflow-hidden bg-muted/40">
       <Toaster />
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace this resume with the sample?</DialogTitle>
+            <DialogDescription>
+              This replaces all content and design settings in this resume. Download a JSON backup
+              first if you want to keep the current version.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)}>
+              Keep my resume
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                update(structuredClone(defaultResume));
+                setResetOpen(false);
+                toast.success("Reset to the template sample");
+              }}
+            >
+              Replace with sample
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={pdfHelpOpen} onOpenChange={setPdfHelpOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save a searchable PDF</DialogTitle>
+            <DialogDescription>
+              In the next dialog, select your browser's <strong>Save as PDF</strong> destination.
+              Avoid Microsoft Print to PDF or another printer driver: they may convert letters to
+              outlines and remove clickable links. Turn off browser headers and footers.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPdfHelpOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void exportPdf()} disabled={printing}>
+              Continue to print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-3">
         <Button variant="ghost" size="icon" aria-label="Back to my resumes" asChild>
           <Link to="/resumes">
             <ArrowLeft className="size-4" />
           </Link>
         </Button>
-        <div className="mr-auto min-w-[220px]">
+        <div className="mr-auto min-w-0 flex-1 basis-[220px] max-w-md">
           {/* Visible border + pencil so it reads as an editable field, not a heading. */}
           <div className="relative">
             <Input
@@ -218,7 +295,7 @@ function ResumeEditorPage() {
             />
             <Pencil className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           </div>
-          <p className="mt-1 px-1 text-xs">
+          <p className="mt-1 px-1 text-xs" role="status" aria-live="polite">
             {saving ? (
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" /> Saving…
@@ -244,37 +321,21 @@ function ResumeEditorPage() {
             )}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.35, z - 0.08))}
-        >
-          <ZoomOut className="size-4" />
-        </Button>
-        <span className="w-10 text-center text-xs text-muted-foreground">
-          {Math.round(zoom * 100)}%
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Zoom in"
-          onClick={() => setZoom((z) => Math.min(1.4, z + 0.08))}
-        >
-          <ZoomIn className="size-4" />
+        <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+          <RotateCcw className="size-4" /> Reset
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            update(defaultResume);
-            toast.success("Reset to the template sample");
-          }}
+          onClick={() => void exportDocx()}
+          disabled={exportingDocx}
         >
-          <RotateCcw className="size-4" /> Reset
-        </Button>
-        <Button variant="outline" size="sm" onClick={exportDocx}>
-          <FileDown className="size-4" /> DOCX
+          {exportingDocx ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <FileDown className="size-4" />
+          )}{" "}
+          DOCX
         </Button>
         <Button
           variant="outline"
@@ -290,7 +351,12 @@ function ResumeEditorPage() {
         >
           <FileDown className="size-4" /> JSON
         </Button>
-        <Button variant="outline" size="sm" onClick={exportPdf}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPdfHelpOpen(true)}
+          disabled={printing}
+        >
           <Printer className="size-4" /> PDF
         </Button>
         {/* Autosave covers the normal path; this is "save now" and the retry
@@ -309,10 +375,13 @@ function ResumeEditorPage() {
       {/* flex-1 + min-h-0 makes the panels fill exactly the space the header
           leaves, so each one scrolls on its own instead of scrolling the page
           (a fixed header height breaks the moment the header wraps). */}
-      <main className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(360px,420px)_1fr] lg:overflow-hidden">
-        <section className="min-h-0 overflow-y-auto overscroll-contain rounded-xl border border-border bg-background p-3">
+      <main className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 grid-rows-[minmax(220px,0.8fr)_minmax(240px,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:overflow-hidden">
+        <section
+          aria-label="Resume editing controls"
+          className="min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-xl border border-border bg-background p-3"
+        >
           <Tabs defaultValue="content">
-            <TabsList className="w-full">
+            <TabsList className="sticky top-0 z-10 w-full bg-muted shadow-sm">
               <TabsTrigger value="content" className="flex-1">
                 Content
               </TabsTrigger>
@@ -329,13 +398,7 @@ function ResumeEditorPage() {
           </Tabs>
         </section>
 
-        <section className="resume-print-root min-h-0 overflow-auto overscroll-contain">
-          <div className="resume-zoom mx-auto" style={{ width: `calc(210mm * ${zoom})` }}>
-            <div className="resume-zoom" style={{ zoom, width: "210mm" }}>
-              {preview}
-            </div>
-          </div>
-        </section>
+        <ResumePreview>{preview}</ResumePreview>
       </main>
     </div>
   );

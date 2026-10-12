@@ -23,6 +23,7 @@ test("export/import preserves all content, design and section overrides", () => 
   const resume = structuredClone(defaultResume);
   resume.name = "José — 李";
   resume.design.fitOnePage = true;
+  resume.design.bulletAlign = "justify";
   resume.design.fontFamily = "Calibri, Arial, sans-serif";
   Object.assign(resume.sections[0], {
     hidden: true,
@@ -30,6 +31,7 @@ test("export/import preserves all content, design and section overrides", () => 
     rule: false,
     ruleWidth: 2,
     align: "right",
+    bulletAlign: "center",
     spaceBefore: 12,
     itemSpacing: 3,
   });
@@ -93,4 +95,18 @@ test("UTF-8 BOM is accepted and database metadata is not exported", () => {
   assert.deepEqual(Object.keys(JSON.parse(text)), ["version", "title", "data"]);
   assert.equal(text.includes("private"), false);
   assert.deepEqual(parseResumeJson(`\uFEFF${text}`).data, defaultResume);
+});
+
+test("older JSON defaults bullets to left and rejects invalid alignment", () => {
+  const resume = structuredClone(defaultResume);
+  delete resume.design.bulletAlign;
+  assert.equal(parseResumeJson(JSON.stringify(resume)).data.design.bulletAlign, "left");
+  for (const value of ["distributed", "", 1]) {
+    resume.design.bulletAlign = value;
+    assert.throws(() => parseResumeJson(JSON.stringify(resume)), /Invalid resume JSON/);
+    delete resume.design.bulletAlign;
+    resume.sections[0].bulletAlign = value;
+    assert.throws(() => parseResumeJson(JSON.stringify(resume)), /Invalid resume JSON/);
+    delete resume.sections[0].bulletAlign;
+  }
 });

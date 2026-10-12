@@ -5,6 +5,7 @@ import type { Resume } from "./types";
 const number = z.number().finite();
 const spacing = number.nonnegative();
 const align = z.enum(["left", "center", "right"]);
+const bulletAlign = z.enum(["left", "center", "right", "justify"]);
 const id = z.string().min(1);
 const bullet = z.object({ id, text: z.string() });
 const design = z.object({
@@ -29,6 +30,7 @@ const design = z.object({
   headingAlign: align,
   headerAlign: align,
   entrySpacing: spacing,
+  bulletAlign,
   bulletSpacing: spacing,
   bulletIndent: spacing,
   itemSpacing: spacing,
@@ -66,6 +68,7 @@ export const resumeJsonSchema = z.object({
       rule: z.boolean().optional(),
       ruleWidth: spacing.optional(),
       align: align.optional(),
+      bulletAlign: bulletAlign.optional(),
       spaceBefore: spacing.optional(),
       itemSpacing: spacing.optional(),
     }),

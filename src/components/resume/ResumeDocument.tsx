@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { nextFitScale } from "@/lib/resume/fit";
 import { paginateColumns } from "@/lib/resume/pagination";
 import { RichText } from "@/lib/resume/richtext";
 import type { Contact, Design, Resume, Section } from "@/lib/resume/types";
@@ -135,6 +136,7 @@ function SectionBlock({
         {
           marginTop: `${(section.spaceBefore ?? design.sectionSpacing) * fit}px`,
           "--resume-item-gap": `${(section.itemSpacing ?? design.itemSpacing) * fit}px`,
+          "--resume-bullet-align": section.bulletAlign ?? design.bulletAlign ?? "left",
         } as React.CSSProperties
       }
     >
@@ -160,10 +162,11 @@ function SectionBlock({
 export function ResumeDocument({ resume }: { resume: Resume }) {
   const { design } = resume;
   const contentRef = useRef<HTMLDivElement>(null);
-  const [fitScale, setFit] = useState(1);
+  const [layout, setLayout] = useState({ source: resume, fit: 1 });
+  const iterations = useRef({ source: resume, count: 0 });
   const [pageGroups, setPageGroups] = useState<number[][][]>([[[], []]]);
   const [overflow, setOverflow] = useState(false);
-  const fit = design.fitOnePage ? fitScale : 1;
+  const fit = design.fitOnePage && layout.source === resume ? layout.fit : 1;
   const available = (297 - design.marginTop - design.marginBottom) * (96 / 25.4);
   const visible = resume.sections.filter((s) => !s.hidden);
   const hasSide = visible.some((s) => s.column === "side");
@@ -257,6 +260,7 @@ export function ResumeDocument({ resume }: { resume: Resume }) {
   const measure = () => {
     const node = contentRef.current;
     if (!node) return;
+    if (iterations.current.source !== resume) iterations.current = { source: resume, count: 0 };
     const headerHeight = node.querySelector("header")?.offsetHeight ?? 0;
     const columnNodes = node.querySelectorAll<HTMLElement>("[data-resume-column]");
     const heights = Array.from(columnNodes, (col) =>
@@ -265,14 +269,14 @@ export function ResumeDocument({ resume }: { resume: Resume }) {
     const natural =
       headerHeight +
       Math.max(0, ...heights.map((items) => items.reduce((sum, height) => sum + height, 0)));
-    const floor = Math.min(1, 9 / design.fontSize);
-    const target = Math.min(1, Math.max(floor, ((fit * available) / Math.max(1, natural)) * 0.998));
-    if (
-      design.fitOnePage &&
-      Math.abs(target - fit) > 0.003 &&
-      (natural > available || natural < available * 0.97)
-    ) {
-      setFit(target);
+    // Shrink only within an edit: growing again can oscillate around wrapping
+    // thresholds and synchronously exceed React's nested update limit.
+    const target = design.fitOnePage
+      ? nextFitScale(fit, natural, available, design.fontSize, iterations.current.count)
+      : 1;
+    if (target !== fit) {
+      iterations.current.count += 1;
+      setLayout({ source: resume, fit: target });
       return;
     }
     const { pages: result, oversized } = paginateColumns(heights, available, headerHeight);
@@ -281,22 +285,30 @@ export function ResumeDocument({ resume }: { resume: Resume }) {
       JSON.stringify(previous) === JSON.stringify(result) ? previous : result,
     );
   };
-  useLayoutEffect(measure);
   const measureRef = useRef(measure);
   useLayoutEffect(() => {
     measureRef.current = measure;
+    measure();
   });
   useEffect(() => {
     const node = contentRef.current;
     if (!node) return;
-    const observer = new ResizeObserver(() => measureRef.current());
-    observer.observe(node);
     let active = true;
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (active) measureRef.current();
+      });
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(node);
     void document.fonts?.ready.then(() => {
-      if (active) measureRef.current();
+      if (active) schedule();
     });
     return () => {
       active = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, []);

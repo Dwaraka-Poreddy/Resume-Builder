@@ -13,7 +13,7 @@ import {
 } from "docx";
 
 import { parseInline } from "./richtext";
-import type { Resume, Section } from "./types";
+import type { BulletAlign, Resume, Section } from "./types";
 
 const mmToTwips = (value: number) => Math.round((value * 1440) / 25.4);
 const pxToTwips = (value: number) => Math.round(value * 15);
@@ -69,12 +69,14 @@ export async function buildResumeDocx(resume: Resume, fitScale = 1): Promise<Blo
     color: color(design.textColor),
     characterSpacing: Math.round(design.letterSpacing * design.fontSize * 20),
   };
-  const alignment = (value: "left" | "center" | "right") =>
-    value === "center"
-      ? AlignmentType.CENTER
-      : value === "right"
-        ? AlignmentType.RIGHT
-        : AlignmentType.LEFT;
+  const alignment = (value: BulletAlign) =>
+    value === "justify"
+      ? AlignmentType.JUSTIFIED
+      : value === "center"
+        ? AlignmentType.CENTER
+        : value === "right"
+          ? AlignmentType.RIGHT
+          : AlignmentType.LEFT;
   const line = Math.round(design.lineHeight * 240);
   const headingSize = Math.round(size * resume.design.headingScale);
 
@@ -133,8 +135,9 @@ export async function buildResumeDocx(resume: Resume, fitScale = 1): Promise<Blo
       ],
     });
 
-  const bulletParagraph = (text: string) =>
+  const bulletParagraph = (text: string, section: Section) =>
     new Paragraph({
+      alignment: alignment(section.bulletAlign ?? design.bulletAlign ?? "left"),
       spacing: { before: pxToTwips(design.bulletSpacing), after: 0, line },
       tabStops: [
         {
@@ -175,10 +178,10 @@ export async function buildResumeDocx(resume: Resume, fitScale = 1): Promise<Blo
               entry.bullets.length > 0,
             ),
           );
-        for (const bullet of entry.bullets) out.push(bulletParagraph(bullet.text));
+        for (const bullet of entry.bullets) out.push(bulletParagraph(bullet.text, section));
       }
     } else if (section.layout === "bullets") {
-      for (const item of section.items) out.push(bulletParagraph(item.text));
+      for (const item of section.items) out.push(bulletParagraph(item.text, section));
     } else if (section.layout === "lines") {
       for (const item of section.items)
         out.push(

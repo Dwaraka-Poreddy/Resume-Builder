@@ -1,3 +1,4 @@
+import { NumberSetting } from "./NumberSetting";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,7 +11,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import type { Align, Design, Resume, Section } from "@/lib/resume/types";
+import type { Align, BulletAlign, Design, Resume, Section } from "@/lib/resume/types";
 import { FONT_OPTIONS } from "@/lib/resume/types";
 
 interface Props {
@@ -107,6 +108,10 @@ export function DesignTab({ resume, onChange }: Props) {
       sections: resume.sections.map((s) => (s.id === id ? { ...s, ...next } : s)),
     });
 
+  const hasSideColumn = resume.sections.some(
+    (section) => !section.hidden && section.column === "side",
+  );
+  const bulletOptions: BulletAlign[] = ["left", "center", "right", "justify"];
   const alignOptions: Align[] = ["left", "center", "right"];
 
   return (
@@ -127,10 +132,32 @@ export function DesignTab({ resume, onChange }: Props) {
             : "Uses your exact font sizes and spacing. Longer resumes continue onto more pages."}
         </p>
       </div>
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <Label htmlFor="bullet-alignment">Bullet text alignment</Label>
+        <Select
+          value={design.bulletAlign ?? "left"}
+          onValueChange={(value) => patch({ bulletAlign: value as BulletAlign })}
+        >
+          <SelectTrigger id="bullet-alignment" aria-describedby="bullet-alignment-help">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {bulletOptions.map((value) => (
+              <SelectItem key={value} value={value} className="capitalize">
+                {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p id="bullet-alignment-help" className="text-xs text-muted-foreground">
+          Applies to all bullet lists, including experience and awards. Justify aligns both edges;
+          the final line stays left-aligned. Individual sections can override this below.
+        </p>
+      </div>
       <div className="space-y-2">
-        <Label>Font family</Label>
+        <Label htmlFor="font-family">Font family</Label>
         <Select value={design.fontFamily} onValueChange={(value) => patch({ fontFamily: value })}>
-          <SelectTrigger>
+          <SelectTrigger id="font-family">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -151,6 +178,7 @@ export function DesignTab({ resume, onChange }: Props) {
           <div key={color.key} className="space-y-2">
             <Label className="text-xs">{color.label}</Label>
             <Input
+              aria-label={color.label}
               type="color"
               className="h-9 p-1"
               value={design[color.key] as string}
@@ -160,32 +188,47 @@ export function DesignTab({ resume, onChange }: Props) {
         ))}
       </div>
 
-      {sliders.map((slider) => (
-        <div key={slider.key} className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">{slider.label}</Label>
-            <span className="text-xs text-muted-foreground">
-              {Number(design[slider.key]).toFixed(slider.step < 0.1 ? 3 : slider.step < 1 ? 2 : 0)}
-              {slider.suffix ?? ""}
-            </span>
+      {sliders
+        .filter(
+          (slider) => hasSideColumn || (slider.key !== "columnSplit" && slider.key !== "columnGap"),
+        )
+        .map((slider) => (
+          <div key={slider.key} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">{slider.label}</Label>
+              <div className="flex items-center gap-1">
+                <NumberSetting
+                  label={`${slider.label} value`}
+                  className="h-7 w-20 text-right text-xs"
+                  min={slider.min}
+                  max={slider.max}
+                  step={slider.step}
+                  value={Number(design[slider.key])}
+                  onValueChange={(value) => patch({ [slider.key]: value } as Partial<Design>)}
+                />
+                <span className="text-xs text-muted-foreground">{slider.suffix ?? ""}</span>
+              </div>
+            </div>
+            <Slider
+              aria-label={slider.label}
+              min={slider.min}
+              max={slider.max}
+              step={slider.step}
+              value={[Number(design[slider.key])]}
+              onValueChange={([value]) => patch({ [slider.key]: value } as Partial<Design>)}
+            />
           </div>
-          <Slider
-            min={slider.min}
-            max={slider.max}
-            step={slider.step}
-            value={[Number(design[slider.key])]}
-            onValueChange={([value]) => patch({ [slider.key]: value } as Partial<Design>)}
-          />
-        </div>
-      ))}
+        ))}
 
       <div className="space-y-2">
-        <Label className="text-xs">Header alignment</Label>
+        <Label htmlFor="header-alignment" className="text-xs">
+          Header alignment
+        </Label>
         <Select
           value={design.headerAlign}
           onValueChange={(value) => patch({ headerAlign: value as Align })}
         >
-          <SelectTrigger>
+          <SelectTrigger id="header-alignment">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -199,12 +242,14 @@ export function DesignTab({ resume, onChange }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs">Section title alignment</Label>
+        <Label htmlFor="heading-alignment" className="text-xs">
+          Section title alignment
+        </Label>
         <Select
           value={design.headingAlign}
           onValueChange={(value) => patch({ headingAlign: value as Align })}
         >
-          <SelectTrigger>
+          <SelectTrigger id="heading-alignment">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -223,16 +268,14 @@ export function DesignTab({ resume, onChange }: Props) {
           {margins.map((margin) => (
             <div key={margin.key} className="space-y-1">
               <Label className="text-[10px] text-muted-foreground">{margin.label}</Label>
-              <Input
-                type="number"
+              <NumberSetting
+                label={`${margin.label} page margin in millimeters`}
                 min={0}
                 max={40}
                 step={0.5}
                 className="h-8"
                 value={Number(design[margin.key])}
-                onChange={(event) =>
-                  patch({ [margin.key]: Number(event.target.value) } as Partial<Design>)
-                }
+                onValueChange={(value) => patch({ [margin.key]: value } as Partial<Design>)}
               />
             </div>
           ))}
@@ -244,6 +287,7 @@ export function DesignTab({ resume, onChange }: Props) {
           <div key={toggle.key} className="flex items-center justify-between gap-3">
             <Label className="text-xs font-normal">{toggle.label}</Label>
             <Switch
+              aria-label={toggle.label}
               checked={Boolean(design[toggle.key])}
               onCheckedChange={(checked) => patch({ [toggle.key]: checked } as Partial<Design>)}
             />
@@ -263,12 +307,14 @@ export function DesignTab({ resume, onChange }: Props) {
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-[10px]"
+                  aria-label={`Reset ${section.title} design overrides`}
                   onClick={() =>
                     patchSection(section.id, {
                       boldTitle: undefined,
                       rule: undefined,
                       ruleWidth: undefined,
                       align: undefined,
+                      bulletAlign: undefined,
                       spaceBefore: undefined,
                       itemSpacing: undefined,
                     })
@@ -281,6 +327,7 @@ export function DesignTab({ resume, onChange }: Props) {
               <div className="flex items-center justify-between gap-3">
                 <Label className="text-xs font-normal">Bold title</Label>
                 <Switch
+                  aria-label={`${section.title} bold title`}
                   checked={section.boldTitle ?? design.boldSectionTitles}
                   onCheckedChange={(checked) => patchSection(section.id, { boldTitle: checked })}
                 />
@@ -289,6 +336,7 @@ export function DesignTab({ resume, onChange }: Props) {
               <div className="flex items-center justify-between gap-3">
                 <Label className="text-xs font-normal">Underline</Label>
                 <Switch
+                  aria-label={`${section.title} underline`}
                   checked={rule}
                   onCheckedChange={(checked) => patchSection(section.id, { rule: checked })}
                 />
@@ -303,6 +351,7 @@ export function DesignTab({ resume, onChange }: Props) {
                     </span>
                   </div>
                   <Slider
+                    aria-label={`${section.title} underline width`}
                     min={0.2}
                     max={4}
                     step={0.1}
@@ -320,6 +369,7 @@ export function DesignTab({ resume, onChange }: Props) {
                   </span>
                 </div>
                 <Slider
+                  aria-label={`${section.title} space before`}
                   min={0}
                   max={40}
                   step={1}
@@ -336,6 +386,7 @@ export function DesignTab({ resume, onChange }: Props) {
                   </span>
                 </div>
                 <Slider
+                  aria-label={`${section.title} line spacing`}
                   min={0}
                   max={12}
                   step={0.5}
@@ -344,13 +395,44 @@ export function DesignTab({ resume, onChange }: Props) {
                 />
               </div>
 
+              {(section.layout === "entries" || section.layout === "bullets") && (
+                <div className="space-y-1">
+                  <Label htmlFor={`bullet-alignment-${section.id}`} className="text-xs font-normal">
+                    Bullet text alignment
+                  </Label>
+                  <Select
+                    value={section.bulletAlign ?? "inherit"}
+                    onValueChange={(value) =>
+                      patchSection(section.id, {
+                        bulletAlign: value === "inherit" ? undefined : (value as BulletAlign),
+                      })
+                    }
+                  >
+                    <SelectTrigger id={`bullet-alignment-${section.id}`} className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inherit">
+                        Use global ({design.bulletAlign ?? "left"})
+                      </SelectItem>
+                      {bulletOptions.map((value) => (
+                        <SelectItem key={value} value={value} className="capitalize">
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
-                <Label className="text-xs font-normal">Title alignment</Label>
+                <Label htmlFor={`title-alignment-${section.id}`} className="text-xs font-normal">
+                  Title alignment
+                </Label>
                 <Select
                   value={section.align ?? design.headingAlign}
                   onValueChange={(value) => patchSection(section.id, { align: value as Align })}
                 >
-                  <SelectTrigger className="h-8">
+                  <SelectTrigger id={`title-alignment-${section.id}`} className="h-8">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

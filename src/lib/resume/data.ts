@@ -61,6 +61,7 @@ export const defaultDesign: Design = {
   headingAlign: "left",
   headerAlign: "center",
   entrySpacing: 5,
+  bulletAlign: "left",
   bulletSpacing: 1,
   bulletIndent: 10,
   itemSpacing: 1,
@@ -91,7 +92,13 @@ export const defaultResume: Resume = {
           "**CGPA - 7.32/10**",
           [],
         ),
-        entry("Sri Chaitanya College, Vijayawada", "2016", "Class 12th", "**Percentage - 96.5%**", []),
+        entry(
+          "Sri Chaitanya College, Vijayawada",
+          "2016",
+          "Class 12th",
+          "**Percentage - 96.5%**",
+          [],
+        ),
       ],
     }),
     section("Experience", "entries", {
@@ -107,17 +114,11 @@ export const defaultResume: Resume = {
             "Contributed to a **server-driven UI** configuration portal enabling teams to control app UIs from the backend, cutting release cycles and boosting deployment speed.",
           ],
         ),
-        entry(
-          "",
-          "",
-          "*SDE-2* – Customer Acquisition – Bangalore – Aug 2022 – Jan 2024",
-          "",
-          [
-            "Built and maintained multiple features across **Flutter** and **native iOS** codebases, ensuring high performance for a high-traffic, consumer-facing application.",
-            "Improved stability by reducing crashes, speeding up load times by **18%** via bug fixes and performance optimizations, and increased **test coverage by 40%**.",
-            "Collaborated with cross-functional teams to deliver seamless UI/UX, while actively participating in code reviews to ensure consistency and quality. Mentored juniors and drove internal workshops.",
-          ],
-        ),
+        entry("", "", "*SDE-2* – Customer Acquisition – Bangalore – Aug 2022 – Jan 2024", "", [
+          "Built and maintained multiple features across **Flutter** and **native iOS** codebases, ensuring high performance for a high-traffic, consumer-facing application.",
+          "Improved stability by reducing crashes, speeding up load times by **18%** via bug fixes and performance optimizations, and increased **test coverage by 40%**.",
+          "Collaborated with cross-functional teams to deliver seamless UI/UX, while actively participating in code reviews to ensure consistency and quality. Mentored juniors and drove internal workshops.",
+        ]),
         entry(
           "**EvaluAItor (AI.VONE Technologies Pvt Ltd)**",
           "**Nov 2023 – Dec 2024**",
@@ -188,17 +189,25 @@ export const defaultResume: Resume = {
     }),
     section("Certifications", "lines", {
       items: [
-        b("**Amazon ML Summer School** — Amazon, July 2021 | [Certificate](https://example.com/amazon-ml)"),
+        b(
+          "**Amazon ML Summer School** — Amazon, July 2021 | [Certificate](https://example.com/amazon-ml)",
+        ),
         b("**React Specialization** — Coursera, Aug 2020 | [Certificate](https://coursera.org)"),
         b("**Six Sigma** — Shigemi Sols, Sep 2017 | [Certificate](https://example.com/six-sigma)"),
       ],
     }),
     section("Achievements and Awards", "bullets", {
       items: [
-        b("Solved **300+** Data Structure and Algorithm problems on [GFG](https://www.geeksforgeeks.org/user/dwarakaporeddy), [LeetCode](https://leetcode.com/u/Dwaraka.P) and InterviewBit."),
-        b("Secured **top 10th position** in BITS Hyderabad on the Geeks for Geeks practice website."),
+        b(
+          "Solved **300+** Data Structure and Algorithm problems on [GFG](https://www.geeksforgeeks.org/user/dwarakaporeddy), [LeetCode](https://leetcode.com/u/Dwaraka.P) and InterviewBit.",
+        ),
+        b(
+          "Secured **top 10th position** in BITS Hyderabad on the Geeks for Geeks practice website.",
+        ),
         b("Won elections to become **Hostel President** at BITS Hyderabad for 2018-19."),
-        b("Volunteer: Nirmaan (Committee Member), Pebble Sierra (Program Coordinator), Grandh (Web Developer)."),
+        b(
+          "Volunteer: Nirmaan (Committee Member), Pebble Sierra (Program Coordinator), Grandh (Web Developer).",
+        ),
         b("Languages: English • Hindi • Telugu."),
       ],
     }),

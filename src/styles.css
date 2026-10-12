@@ -340,7 +340,9 @@
 .resume-bullet-text {
   flex: 1 1 auto;
   min-width: 0;
-  text-align: left;
+  text-align: var(--resume-bullet-align, left);
+  text-align-last: auto;
+  text-justify: inter-word;
 }
 
 .resume-line,
